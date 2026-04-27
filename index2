@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Portal SIEL SSASUR v0.5</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="shortcut icon" href="data:image/x-icon;," type="image/x-icon"> 
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] }, colors: { medical: { primary: '#0284c7', dark: '#0c4a6e', light: '#e0f2fe', critical: '#ef4444' } } } } }
+  </script>
+  <style>
+    body { background: radial-gradient(circle at top right, #f1f5f9, #e0f2fe); min-height: 100vh; font-feature-settings: "cv02", "cv03", "cv04", "cv11"; }
+    .glass { background: rgba(255, 255, 255, 0.65); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.8); box-shadow: 0 8px 32px 0 rgba(2, 132, 199, 0.05); }
+    .glass-card { background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.6) 100%); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.5); }
+    .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
+    .pulse-glow { animation: pulseGlow 2.5s infinite cubic-bezier(0.4, 0, 0.6, 1); }
+    @keyframes pulseGlow { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .8; transform: scale(1.02); } }
+    
+    /* Reglas para imprimir a PDF de forma limpia */
+    .pdf-mode { background: white !important; }
+  </style>
+</head>
+<body class="text-slate-800 antialiased overflow-hidden selection:bg-medical-light selection:text-medical-dark">
+
+  <div id="full-loader" class="fixed inset-0 z-[100] glass flex flex-col items-center justify-center transition-all duration-700">
+    <div class="bg-gradient-to-br from-medical-primary to-medical-dark p-5 rounded-2xl shadow-2xl mb-6 pulse-glow">
+      <i data-lucide="microscope" class="w-12 h-12 text-white"></i>
+    </div>
+    <h2 class="text-xl font-black text-medical-dark tracking-widest uppercase">Inicializando SIEL SSASUR...</h2>
+  </div>
+
+  <div id="login-view" class="fixed inset-0 z-[90] glass hidden flex flex-col items-center justify-center transition-all duration-500 opacity-0">
+    <div class="bg-white/90 backdrop-blur-xl p-10 rounded-3xl shadow-2xl border border-white max-w-md w-full flex flex-col items-center">
+      <div class="bg-medical-light text-medical-primary p-4 rounded-2xl mb-6 shadow-inner">
+        <i data-lucide="shield-check" class="w-10 h-10"></i>
+      </div>
+      <h2 class="text-3xl font-black text-medical-dark mb-1 text-center leading-none">Credenciales de acceso</h2>
+      <div class="w-full mb-4 mt-8">
+        <input type="email" id="login-input-email" placeholder="Usuario" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-medical-primary outline-none">
+      </div>
+      <div class="w-full mb-8">
+        <input type="password" id="login-input-pass" placeholder="Contraseña" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-medical-primary outline-none">
+        <p id="login-error" class="text-xs text-red-500 font-bold mt-2 hidden text-center"></p>
+      </div>
+      <button onclick="intentarLogin()" class="w-full bg-medical-dark hover:bg-medical-primary text-white font-bold py-3.5 rounded-xl shadow-lg transition-all uppercase tracking-widest">Ingresar</button>
+    </div>
+  </div>
+
+  <header id="main-header" class="glass sticky top-0 z-40 px-8 py-4 border-b border-white/40 hidden">
+    <div class="flex items-center justify-between w-full">
+        
+        <div class="flex items-center gap-8">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-br from-medical-primary to-blue-700 text-white p-2.5 rounded-xl shadow-md border border-blue-400/30">
+                    <i data-lucide="microscope" class="w-6 h-6"></i>
+                </div>
+                <div class="flex flex-col">
+                    <h1 class="text-2xl font-black text-medical-dark tracking-tighter leading-none">
+                        LAB SIEL <span class="text-medical-primary">SSASUR</span>
+                    </h1>
+                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                        Red de Laboratorios Clínicos
+                    </span>
+                </div>
+            </div>
+
+             <nav class="flex bg-slate-200/50 p-1 rounded-xl shadow-inner">
+                <button id="tab-cat" onclick="nav('cat')" class="px-5 py-1.5 text-xs font-bold rounded-lg bg-white text-medical-primary shadow-sm flex items-center gap-1">
+                    <i data-lucide="book-open" class="w-4 h-4"></i> CATÁLOGO
+                </button>
+                
+                <button id="tab-edt" onclick="nav('edt')" class="hidden px-5 py-1.5 text-xs font-bold rounded-lg text-slate-500 hover:text-medical-dark flex items-center gap-1">
+                    <i data-lucide="database" class="w-4 h-4"></i> GESTOR BD
+                </button>
+
+                <button id="tab-usr" onclick="nav('usr')" class="px-5 py-1.5 text-xs font-bold rounded-lg text-slate-500 hover:text-medical-dark flex items-center gap-1">
+                    <i data-lucide="users" class="w-4 h-4"></i> USUARIOS
+                </button>
+            </nav>
+        </div>
+
+        <div class="flex items-center gap-6">
+            <div class="relative w-80">
+                <input type="text" id="search" oninput="applyFilters()" placeholder="Filtrar exámenes, LOINC o FONASA..." class="w-full glass-card border border-medical-primary/30 rounded-full py-2.5 pl-11 pr-4 focus:ring-2 focus:ring-medical-primary outline-none text-sm shadow-sm">
+                <i data-lucide="search" class="w-4 h-4 absolute left-4 top-3 text-medical-primary opacity-60"></i>
+            </div>
+            
+            <div class="flex items-center gap-4 pl-6 border-l border-slate-300">
+                <div class="flex flex-col items-end">
+                    <span class="text-xs font-bold text-medical-dark" id="header-email">User</span>
+                    <span class="text-[9px] font-black text-medical-primary uppercase bg-medical-light px-2 rounded-full mt-0.5" id="header-role">Role</span>
+                </div>
+                <button onclick="cerrarSesion()" class="bg-white/80 p-2.5 rounded-full hover:bg-red-50 text-slate-500 hover:text-red-600 transition-all shadow-sm">
+                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+
+    </div>
+</header>
+  <div class="relative h-[calc(100vh-80px)]">
+    <main id="view-cat" class="hidden h-full p-6 gap-6">
+      <div class="w-1/3 flex flex-col gap-4">
+        
+        <div class="bg-medical-dark p-3 rounded-2xl shadow-md border border-medical-primary">
+            <label class="text-[9px] text-blue-200 font-black uppercase tracking-widest mb-1 block pl-1 flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3"></i> Sede Origen (Toma de Muestra)</label>
+            <select id="filt-sede" onchange="applyFilters(); document.getElementById('detail-panel').classList.add('hidden');" class="w-full bg-white/10 text-white text-xs font-bold p-2 rounded-xl outline-none focus:ring-1 focus:ring-white border border-white/20">
+                <option value="" class="text-slate-800">Seleccione un hospital...</option>
+            </select>
+        </div>
+
+        <div class="flex gap-2 bg-white/50 p-2 rounded-xl shadow-sm border border-white">
+            <select id="filt-area" onchange="applyFilters()" class="w-1/3 bg-transparent text-[10px] font-bold text-slate-600 outline-none"><option value="">Todas las áreas</option></select>
+            <select id="filt-muestra" onchange="applyFilters()" class="w-1/3 bg-transparent text-[10px] font-bold text-slate-600 outline-none border-l border-slate-300 pl-2"><option value="">Tipo de muestra</option></select>
+            <select id="filt-cont" onchange="applyFilters()" class="w-1/3 bg-transparent text-[10px] font-bold text-slate-600 outline-none border-l border-slate-300 pl-2"><option value="">Tipo de contenedor</option></select>
+        </div>
+        <div class="flex flex-col gap-3 overflow-y-auto custom-scroll pr-2 pb-20" id="exam-list"></div>
+      </div>
+      
+      <div id="detail-panel" class="w-2/3 glass rounded-3xl p-8 overflow-y-auto custom-scroll hidden bg-white/40 shadow-xl relative border border-white"></div>
+    </main>
+
+    <main id="view-edt" class="hidden h-full p-6 flex flex-col gap-4">
+      <div class="flex justify-between items-center glass p-4 rounded-2xl border border-medical-primary/20">
+        <p class="text-sm font-medium text-slate-600 uppercase tracking-wider flex items-center gap-2">
+    <i data-lucide="settings-2" class="w-4 h-4"></i> Gestor Base de Datos (SIEL)
+        </p>
+        <button onclick="saveChanges()" class="save-btn bg-medical-primary hover:bg-medical-dark text-white px-8 py-2 rounded-xl font-bold text-sm opacity-50 cursor-not-allowed transition-all">Sincronizar a Sheets</button>
+      </div>
+      <div class="glass flex-grow rounded-2xl overflow-auto custom-scroll border border-slate-200">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead class="bg-white/95 sticky top-0 border-b border-slate-300 z-10 shadow-sm">
+    <tr>
+        <th class="p-4 text-medical-dark font-black uppercase text-[10px]">ID SIEL</th>
+        <th class="p-4 text-medical-dark font-black uppercase text-[10px]">Nombre del Examen</th>
+        <th class="p-4 text-medical-dark font-black uppercase text-[10px]">Área / Sección</th>
+        <th class="p-4 text-medical-dark font-black uppercase text-[10px] text-center">Acción</th>
+    </tr>
+</thead>
+          <tbody id="editor-table-body"></tbody>
+        </table>
+      </div>
+    </main>
+    <main id="view-usr" class="hidden h-full flex flex-col p-8 fade-in">
+        <div class="flex justify-between items-end mb-6">
+            <div>
+                <h2 class="text-3xl font-black text-medical-dark tracking-tight">Gestión de Accesos</h2>
+                <p class="text-sm font-medium text-slate-600 uppercase tracking-wider flex items-center gap-2 mt-1">
+                    <i data-lucide="shield-check" class="w-4 h-4 text-emerald-500"></i> Panel de Administración (Solo ADMIN)
+                </p>
+            </div>
+            <button onclick="openUserModal()" class="bg-medical-primary hover:bg-medical-dark text-white px-5 py-2.5 rounded-xl text-xs font-black transition-all shadow-lg shadow-blue-200 flex items-center gap-2">
+                <i data-lucide="user-plus" class="w-4 h-4"></i> NUEVO USUARIO
+            </button>
+        </div>
+
+        <div class="glass flex-grow rounded-3xl shadow-xl border border-white overflow-hidden flex flex-col relative">
+            <div class="overflow-y-auto custom-scroll flex-grow relative">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-white/95 sticky top-0 border-b border-slate-300 z-10 shadow-sm">
+                        <tr>
+                            <th class="p-4 text-medical-dark font-black uppercase text-[10px]">Correo Electrónico</th>
+                            <th class="p-4 text-medical-dark font-black uppercase text-[10px]">Rol / Nivel</th>
+                            <th class="p-4 text-medical-dark font-black uppercase text-[10px]">Sede Asignada</th>
+                            <th class="p-4 text-medical-dark font-black uppercase text-[10px] text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="user-table-body" class="bg-white/50 divide-y divide-slate-100">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+  </div>
+
+<div id="edit-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-medical-dark/20 backdrop-blur-sm p-4">
+    <div class="glass bg-white/95 w-full max-w-4xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-white">
+        <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+            <div>
+                <h2 id="modal-title" class="text-xl font-black text-medical-dark leading-none">Editar Examen</h2>
+                <p id="modal-id-display" class="text-[10px] font-bold text-medical-primary uppercase mt-1"></p>
+            </div>
+            <button onclick="closeEditModal()" class="p-2 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full transition-all">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+        
+        <div class="flex-grow overflow-y-auto custom-scroll p-8">
+            <form id="edit-form" class="grid grid-cols-2 gap-6">
+                <input type="hidden" id="edit-id">
+                <div class="col-span-2 grid grid-cols-2 gap-4 bg-blue-50/30 p-4 rounded-2xl border border-blue-100">
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[9px] font-black uppercase text-medical-primary pl-1">Nombre del Examen</label>
+                        <input type="text" id="edit-nombre" class="w-full p-2.5 rounded-xl border border-slate-200 text-sm font-bold outline-none focus:ring-2 focus:ring-medical-primary">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[9px] font-black uppercase text-medical-primary pl-1">Área de Trabajo</label>
+                        <input type="text" id="edit-area" class="w-full p-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-medical-primary">
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <label class="text-[9px] font-black uppercase text-slate-500 pl-1">Código FONASA</label>
+                    <input type="text" id="edit-fonasa" class="w-full p-2.5 rounded-xl border border-slate-200 text-sm outline-none">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-[9px] font-black uppercase text-slate-500 pl-1">Código LOINC</label>
+                    <input type="text" id="edit-loinc" class="w-full p-2.5 rounded-xl border border-slate-200 text-sm outline-none">
+                </div>
+
+                <div class="col-span-2 flex flex-col gap-1">
+                    <label class="text-[9px] font-black uppercase text-slate-500 pl-1">Utilidad Clínica</label>
+                    <textarea id="edit-utilidad" class="w-full p-3 rounded-xl border border-slate-200 text-sm min-h-[80px] outline-none focus:ring-2 focus:ring-medical-primary"></textarea>
+                </div>
+                
+                <div class="col-span-2 flex flex-col gap-1">
+                    <label class="text-[9px] font-black uppercase text-slate-500 pl-1">Valores de Referencia</label>
+                    <textarea id="edit-valores" class="w-full p-3 rounded-xl border border-slate-200 text-sm min-h-[60px] outline-none focus:ring-2 focus:ring-medical-primary"></textarea>
+                </div>
+            </form>
+        </div>
+
+        <div class="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
+            <button onclick="closeEditModal()" class="px-6 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-200 transition-all">CANCELAR</button>
+            <button onclick="confirmModalChanges()" class="px-8 py-2.5 rounded-xl text-xs font-black bg-medical-primary text-white shadow-lg shadow-blue-200 hover:bg-medical-dark transition-all">APLICAR CAMBIOS</button>
+        </div>
+    </div>
+</div>
+
+<div id="user-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-medical-dark/20 backdrop-blur-sm p-4">
+        <div class="glass bg-white/95 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-white">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <div>
+                    <h2 id="user-modal-title" class="text-xl font-black text-medical-dark leading-none">Nuevo Usuario</h2>
+                </div>
+                <button onclick="closeUserModal()" class="p-2 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full transition-all">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 flex flex-col gap-4">
+                <input type="hidden" id="usr-original-email">
+                
+                <div class="flex flex-col gap-1">
+                    <label class="text-[9px] font-black uppercase text-medical-primary pl-1">Correo Electrónico</label>
+                    <input type="email" id="usr-email" placeholder="usuario@ssasur.cl" class="w-full p-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-medical-primary">
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <label class="text-[9px] font-black uppercase text-medical-primary pl-1">Nivel de Acceso (Rol)</label>
+                    <select id="usr-role" class="w-full p-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-medical-primary bg-white">
+                        <option value="LECTOR">LECTOR (Solo consultar)</option>
+                        <option value="EDITOR">EDITOR (Modificar catálogo)</option>
+                        <option value="ADMIN">ADMIN (Control total)</option>
+                    </select>
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <label class="text-[9px] font-black uppercase text-medical-primary pl-1">Sede / Establecimiento</label>
+                    <input type="text" id="usr-sede" placeholder="Ej: Hospital Pitrufquén" class="w-full p-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-medical-primary">
+                </div>
+            </div>
+
+            <div class="p-5 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
+                <button onclick="closeUserModal()" class="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-200 transition-all">CANCELAR</button>
+                <button onclick="saveUser()" class="px-6 py-2.5 rounded-xl text-xs font-black bg-medical-primary text-white shadow-lg shadow-blue-200 hover:bg-medical-dark transition-all">GUARDAR USUARIO</button>
+            </div>
+        </div>
+    </div>
+
+  <script>
+    let db = { examenes: [], red: [] }, changes = {}, user = { email: '', role: '' };
+    let currentEditId = null;
+
+    // Inicializar Lucide Icons
+    window.addEventListener('DOMContentLoaded', () => { lucide.createIcons(); });
+
+    // Función Segura para leer columnas (ignora espacios)
+    function getSafeField(obj, exactKey) {
+       if(!obj) return '';
+       if(obj[exactKey] !== undefined && obj[exactKey] !== '') return obj[exactKey];
+       const target = exactKey.trim().toLowerCase();
+       for(let k in obj) { if(k.trim().toLowerCase() === target || k.trim().toLowerCase().includes(target)) return obj[k]; }
+       return '';
+    }
+     
+
+    // Parser Inteligente de Condiciones Preanalíticas
+    function parsearCondiciones(texto) {
+      if (!texto || texto.toUpperCase() === 'SIN INFORMACION') {
+          return {
+              paciente: 'No requiere preparación especial. Ayuno estándar sugerido.',
+              conservacion: 'Conservar según estándar de la red.',
+              transporte: 'Temperatura ambiente. Enviar antes de 2 horas.'
+          };
+      }
+      let prep = texto, cons = 'Ver información principal.', trans = 'Ver información principal.';
+      if (texto.includes('1.') || texto.includes('2.') || texto.toUpperCase().includes('CONSERVACION')) {
+          try {
+              let partes1 = texto.split(/(?:2\.\s*CONSERVACION:|2\.\s*CONSERVACIÓN:|2\.)/i);
+              prep = partes1[0].replace(/(?:1\.\s*PREPARACION DEL PACIENTE:|1\.\s*PREPARACIÓN DEL PACIENTE:|1\.)/i, '').trim();
+              if (partes1.length > 1) {
+                  let partes2 = partes1[1].split(/(?:3\.\s*TRANSPORTE:|3\.)/i);
+                  cons = partes2[0].trim();
+                  if (partes2.length > 1) trans = partes2[1].trim();
+              }
+          } catch(e) {}
+      }
+      return { paciente: prep, conservacion: cons, transporte: trans };
+    }
+
+    // Exportación a PDF
+    function exportarPDF() {
+        const elemento = document.getElementById('detail-panel');
+        const boton = elemento.querySelector('button');
+
+        // 1. Ocultamos el botón temporalmente
+        if (boton) boton.style.display = 'none';
+
+        // 2. Configuración básica y estable
+        const opt = {
+            margin:       10,
+            filename:     'Ficha_Examen_SIEL.pdf',
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2 }, // Toma la foto tal cual se ve en pantalla
+            jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' }
+        };
+
+        // 3. Generar PDF directo del elemento visible
+        html2pdf().set(opt).from(elemento).save().then(() => {
+            // 4. Volver a mostrar el botón tras la descarga
+            if (boton) boton.style.display = 'flex';
+        });
+    }
+
+    // Carga Inicial
+    window.onload = () => {
+      google.script.run.withSuccessHandler(res => {
+        const payload = JSON.parse(res);
+        db.examenes = payload.examenes;
+        db.red = payload.red;
+        document.getElementById('full-loader').classList.add('hidden');
+        document.getElementById('login-view').classList.remove('hidden');
+        setTimeout(() => document.getElementById('login-view').classList.remove('opacity-0'), 50);
+      }).getInitData();
+    };
+
+    function intentarLogin() {
+      const email = document.getElementById('login-input-email').value;
+      const pass = document.getElementById('login-input-pass').value;
+      google.script.run.withSuccessHandler(res => {
+        if (res.success) { user = { email: email, role: res.role }; entrarAlPortal(); } 
+        else { document.getElementById('login-error').innerText = res.msg; document.getElementById('login-error').classList.remove('hidden'); }
+      }).verificarLogin(email, pass);
+    }
+
+    function entrarAlPortal() {
+      document.getElementById('login-view').classList.add('hidden');
+      document.getElementById('main-header').classList.remove('hidden');
+      document.getElementById('header-email').innerText = user.email.split('@')[0];
+      document.getElementById('header-role').innerText = user.role;
+      if(user.role === "ADMIN") document.getElementById('tab-edt').classList.remove('hidden');
+      populateFilters(); applyFilters(); nav('cat');
+    }
+
+    function cerrarSesion() { location.reload(); }
+
+    function nav(t) {
+      document.getElementById('view-cat').classList.add('hidden');
+      document.getElementById('view-edt').classList.add('hidden');
+      document.getElementById(`view-${t}`).classList.remove('hidden');
+      document.getElementById('tab-cat').className = t === 'cat' ? "px-5 py-1.5 text-xs font-bold rounded-lg bg-white text-medical-primary shadow-sm flex items-center gap-1" : "px-5 py-1.5 text-xs font-bold rounded-lg text-slate-500 flex items-center gap-1";
+      document.getElementById('tab-edt').className = t === 'edt' ? "px-5 py-1.5 text-xs font-bold rounded-lg bg-white text-medical-primary shadow-sm flex items-center gap-1" : "px-5 py-1.5 text-xs font-bold rounded-lg text-slate-500 flex items-center gap-1";
+      if(t === 'cat') document.getElementById('view-cat').classList.add('flex');
+    }
+
+    function populateFilters() {
+      const getUnique = (arr, key) => [...new Set(arr.map(x => getSafeField(x, key)).filter(x => x && x.trim() !== ''))].sort();
+      
+      getUnique(db.examenes, 'Area de trabajo').forEach(v => document.getElementById('filt-area').innerHTML += `<option value="${v}">${v}</option>`);
+      getUnique(db.examenes, 'Tipo muestra').forEach(v => document.getElementById('filt-muestra').innerHTML += `<option value="${v}">${v}</option>`);
+      getUnique(db.examenes, 'Contenedor').forEach(v => document.getElementById('filt-cont').innerHTML += `<option value="${v}">${v}</option>`);
+      
+      const selectSede = document.getElementById('filt-sede');
+      getUnique(db.red, 'Hospital').forEach(v => {
+          const opt = document.createElement('option');
+          opt.value = v; opt.innerText = v; opt.className = "text-slate-800";
+          selectSede.appendChild(opt);
+      });
+    }
+
+    function applyFilters() {
+      const q = document.getElementById('search').value.toLowerCase();
+      const a = document.getElementById('filt-area').value;
+      const m = document.getElementById('filt-muestra').value;
+      const c = document.getElementById('filt-cont').value;
+      
+      const res = db.examenes.filter(ex => {
+        const nom = getSafeField(ex, 'Nombre exámen SIEL').toLowerCase();
+        const num = getSafeField(ex, 'Número').toLowerCase();
+        const loinc = getSafeField(ex, 'Código LOINC').toLowerCase();
+        const fonasa = getSafeField(ex, 'Código FONASA').toLowerCase();
+        const area = getSafeField(ex, 'Area de trabajo');
+        const mues = getSafeField(ex, 'Tipo muestra');
+        const cont = getSafeField(ex, 'Contenedor');
+        
+        return (nom.includes(q) || num.includes(q) || loinc.includes(q) || fonasa.includes(q)) && (!a || area === a) && (!m || mues === m) && (!c || cont === c);
+      });
+      renderCatalog(res); 
+      if(user.role === "ADMIN") renderEditor(res);
+    }
+
+    function renderCatalog(items) {
+      const c = document.getElementById('exam-list'); c.innerHTML = '';
+      items.slice(0, 150).forEach(ex => {
+        const nombre = getSafeField(ex, 'Nombre exámen SIEL') || 'S/N';
+        const num = getSafeField(ex, 'Número');
+        const urg = getSafeField(ex, 'Tiempo respuesta urgencia');
+        const isUrg = urg && urg.toLowerCase().includes('hora');
+        
+        const d = document.createElement('div');
+        d.className = `glass-card p-4 rounded-2xl cursor-pointer hover:shadow-md transition-all border-l-4 ${isUrg ? 'border-l-red-400' : 'border-l-medical-primary'}`;
+        d.innerHTML = `<div class="text-[9px] font-black text-medical-primary mb-1 uppercase tracking-widest flex items-center justify-between"><span>${num}</span> ${isUrg ? '<i data-lucide="flame" class="w-3 h-3 text-red-500"></i>' : ''}</div><div class="text-sm font-bold text-slate-800 leading-tight">${nombre}</div>`;
+        d.onclick = () => showDetail(ex, nombre, num); 
+        c.appendChild(d);
+      });
+      lucide.createIcons();
+    }
+
+    function showDetail(ex, nombre, id) {
+        const p = document.getElementById('detail-panel');
+        p.classList.remove('hidden');
+        currentEditId = id;
+
+        const cond = parsearCondiciones(getSafeField(ex, 'Condiciones del paciente'));
+        const tAmb = getSafeField(ex, 'Tiempo respuesta ambulatorio') || 'N/A';
+        const tUrg = getSafeField(ex, 'Tiempo respuesta urgencia') || 'N/A';
+        const tHosp = getSafeField(ex, 'Tiempo respuesta hospitalizado') || 'N/A'; // NUEVA LÍNEA
+        const esUrgente = tUrg.toLowerCase().includes('hora');
+        
+        // Logística de Red
+        const sede = document.getElementById('filt-sede').value;
+        let htmlDerivacion = '';
+        if (sede) {
+            const regla = db.red.find(r => getSafeField(r, 'Número') == id && getSafeField(r, 'Hospital') == sede);
+            if (regla) {
+                const procesaEn = getSafeField(regla, 'DERIVA / PROCESA');
+                const cartera = getSafeField(regla, 'Cartera');
+                if (cartera.toUpperCase() === 'NO') {
+                    htmlDerivacion = `<div class="bg-red-50 p-4 rounded-xl border border-red-200 text-red-700 text-xs font-black uppercase tracking-widest text-center shadow-sm mb-6 flex items-center justify-center gap-2 animate-pulse"><i data-lucide="alert-triangle" class="w-4 h-4"></i> EXAMEN NO INCLUIDO EN CARTERA DE ${sede}</div>`;
+                } else if (procesaEn && procesaEn.toUpperCase() !== sede.toUpperCase() && procesaEn.toUpperCase() !== 'LOCAL') {
+                    // LLamada a la configuración de iconos de hospitales
+                    const confOrigen = getHospitalConfig(sede);
+                    const confDest = getHospitalConfig(procesaEn);
+                    
+                    htmlDerivacion = `
+                      <div class="bg-white/80 p-5 rounded-2xl shadow-sm mb-6 border border-blue-100 relative overflow-hidden">
+                          <i data-lucide="truck" class="w-32 h-32 absolute -right-4 -top-4 text-medical-light opacity-30"></i>
+                          <h4 class="text-[10px] font-black text-medical-dark uppercase tracking-widest mb-5 border-b border-blue-100 pb-2 flex items-center gap-2 relative z-10">
+                              <i data-lucide="share-2" class="w-4 h-4 text-medical-primary"></i> Ruta Logística de Derivación en Red
+                          </h4>
+                          <div class="flex items-center justify-between gap-2 relative z-10">
+                              <div class="flex flex-col items-center flex-1">
+                                  <div class="w-12 h-12 rounded-full bg-medical-light border border-medical-primary/20 flex items-center justify-center shadow-inner transition-transform hover:scale-110" title="Complejidad ${confOrigen.label}">
+                                      <i data-lucide="${confOrigen.icon}" class="${confOrigen.size} ${confOrigen.color}"></i>
+                                  </div>
+                                  <span class="text-[9px] mt-2 font-black text-medical-dark uppercase text-center leading-tight">${sede}</span>
+                                  <span class="text-[7px] font-bold text-slate-400 uppercase tracking-tighter">Sede Origen</span>
+                              </div>
+                              <div class="flex flex-col items-center flex-1 px-2">
+                                  <div class="h-0.5 w-full bg-medical-primary/20 relative rounded-full">
+                                      <div class="absolute right-0 -top-1.5 text-medical-primary animate-bounce-x">
+                                          <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                                      </div>
+                                  </div>
+                                  <span class="text-[8px] font-black text-medical-primary uppercase mt-1 tracking-widest">Se deriva a</span>
+                              </div>
+                              <div class="flex flex-col items-center flex-1">
+                                  <div class="w-12 h-12 rounded-full bg-amber-500 border-2 border-white flex items-center justify-center shadow-md transition-transform hover:scale-110" title="Complejidad ${confDest.label}">
+                                      <i data-lucide="${confDest.icon}" class="${confDest.size} text-slate-900"></i>
+                                  </div>
+                                  <span class="text-[9px] mt-2 font-black text-medical-dark uppercase text-center leading-tight">${procesaEn}</span>
+                                  <span class="text-[7px] font-bold text-amber-600 uppercase tracking-tighter">Procesa</span>
+                              </div>
+                          </div>
+                      </div>`;
+                } else {
+                    htmlDerivacion = `<div class="bg-emerald-50/80 p-4 rounded-xl shadow-sm mb-6 text-emerald-800 border border-emerald-200 flex items-center justify-center gap-2"><i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-500"></i><span class="text-[10px] font-black uppercase tracking-widest">Procesamiento Local en ${sede}</span></div>`;
+                }
+            } else {
+                htmlDerivacion = `<div class="bg-slate-100 p-4 rounded-xl border border-slate-200 text-slate-500 text-[10px] font-black uppercase tracking-widest text-center shadow-sm mb-6">No hay regla logística definida para ${sede}</div>`;
+            }
+        }
+
+        p.innerHTML = `
+            <div class="flex justify-between items-start mb-6 pb-6 border-b border-slate-200/50">
+                <div class="w-full">
+                    <h2 class="text-3xl font-black text-medical-dark leading-none tracking-tight">${nombre}</h2>
+                    <div class="flex flex-wrap gap-2 mt-4">
+                        <span class="flex items-center gap-1.5 text-[10px] font-black px-2.5 py-1.5 rounded-lg bg-medical-light text-medical-primary border border-medical-primary/20 shadow-sm uppercase tracking-wider">
+                            <i data-lucide="fingerprint" class="w-3.5 h-3.5"></i> ID ${id}
+                        </span>
+                        <span class="flex items-center gap-1.5 text-[10px] font-black px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-600 border border-slate-200 shadow-sm uppercase tracking-wider">
+                            <i data-lucide="layers" class="w-3.5 h-3.5 text-medical-primary"></i> ${getSafeField(ex, 'Area de trabajo')}
+                        </span>
+                        <span class="flex items-center gap-1.5 text-[10px] font-black px-2.5 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100 shadow-sm uppercase tracking-wider">
+                            <i data-lucide="microscope" class="w-3.5 h-3.5 text-indigo-500"></i> ${getSafeField(ex, 'Sección SIEL') || 'General'}
+                        </span>
+                    </div>
+                </div>
+                <button onclick="exportarPDF()" class="flex items-center gap-2 bg-medical-primary hover:bg-medical-dark text-white px-5 py-3 rounded-2xl text-xs font-black transition-all shadow-lg shadow-blue-200 shrink-0 ml-4">
+                    <i data-lucide="printer" class="w-4 h-4"></i> EXPORTAR PDF
+                </button>
+            </div>
+
+            ${htmlDerivacion}
+
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div class="glass-card p-4 rounded-2xl border border-blue-100">
+                    <div class="flex items-center gap-2 mb-2 text-medical-primary">
+                        <i data-lucide="barcode" class="w-4 h-4"></i>
+                        <span class="text-[10px] font-black uppercase tracking-widest">Codificación FONASA</span>
+                    </div>
+                    <div class="text-lg font-black text-slate-800 tabular-nums">${getSafeField(ex, 'Código FONASA') || 'S/C'}</div>
+                    <p class="text-[10px] font-medium text-slate-500 leading-tight mt-1 uppercase">${getSafeField(ex, 'Nombre FONASA') || 'Sin descripción'}</p>
+                </div>
+                <div class="glass-card p-4 rounded-2xl border border-emerald-100">
+                    <div class="flex items-center gap-2 mb-2 text-emerald-600">
+                        <i data-lucide="globe-2" class="w-4 h-4"></i>
+                        <span class="text-[10px] font-black uppercase tracking-widest">Estándar LOINC</span>
+                    </div>
+                    <div class="text-lg font-black text-slate-800 tabular-nums">${getSafeField(ex, 'Código LOINC') || 'S/C'}</div>
+                    <p class="text-[10px] font-medium text-slate-500 leading-tight mt-1 italic">${getSafeField(ex, 'Nombre LOINC') || 'Sin descripción'}</p>
+                </div>
+            </div>
+
+            <div class="bg-white/80 p-5 rounded-2xl border border-white shadow-sm mb-6">
+                <h3 class="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <i data-lucide="flask-conical" class="w-4 h-4 text-medical-primary"></i> Requisitos de Muestra
+                </h3>
+                <div class="grid grid-cols-6 gap-3">
+                    <div class="col-span-2 bg-slate-50/80 p-3 rounded-xl border border-slate-200">
+                        <span class="flex items-center gap-1.5 text-[9px] uppercase text-medical-dark font-black mb-1.5">
+                            <i data-lucide="droplet" class="w-3 h-3 text-blue-500"></i> Muestra
+                        </span>
+                        <span class="text-xs font-bold text-slate-700 leading-tight block truncate" title="${getSafeField(ex, 'Tipo muestra')}">${getSafeField(ex, 'Tipo muestra')}</span>
+                    </div>
+                    
+                    <div class="col-span-2 bg-slate-50/80 p-3 rounded-xl border border-slate-200">
+                        <span class="flex items-center gap-1.5 text-[9px] uppercase text-medical-dark font-black mb-1.5">
+                            <i data-lucide="test-tube-2" class="w-3 h-3 text-indigo-500"></i> Contenedor
+                        </span>
+                        <span class="text-xs font-bold text-slate-700 leading-tight block truncate" title="${getSafeField(ex, 'Contenedor')}">${getSafeField(ex, 'Contenedor')}</span>
+                    </div>
+
+                    <div class="col-span-1 bg-blue-50/50 p-3 rounded-xl border border-blue-100">
+                        <span class="flex items-center gap-1.5 text-[9px] uppercase text-medical-dark font-black mb-1.5" title="Volumen Adulto">
+                            <i data-lucide="user" class="w-3 h-3 text-medical-primary"></i> Vol. Adulto
+                        </span>
+                        <span class="text-[11px] font-black text-medical-primary leading-tight block truncate" title="${getSafeField(ex, 'Volumen muestra adulto') || 'Tubo Completo'}">${getSafeField(ex, 'Volumen muestra adulto') || 'Tubo Compl.'}</span>
+                    </div>
+
+                    <div class="col-span-1 bg-pink-50/50 p-3 rounded-xl border border-pink-100">
+                        <span class="flex items-center gap-1.5 text-[9px] uppercase text-pink-800 font-black mb-1.5" title="Volumen Pediátrico">
+                            <i data-lucide="baby" class="w-3 h-3 text-pink-500"></i> Vol. Ped.
+                        </span>
+                        <span class="text-[11px] font-black text-pink-600 leading-tight block truncate" title="${getSafeField(ex, 'Volumen muestra pediatrica') || '0.5 - 1 mL'}">${getSafeField(ex, 'Volumen muestra pediatrica') || '0.5 mL'}</span>
+                    </div>
+                </div>
+            </div>
+
+            <<div class="grid grid-cols-3 gap-3 mb-6">
+                <div class="p-3 rounded-xl border ${esUrgente ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-[9px] font-black ${esUrgente ? 'text-red-600' : 'text-slate-500'} uppercase tracking-wider">Urgencia</span>
+                        <i data-lucide="flame" class="w-3.5 h-3.5 ${esUrgente ? 'text-red-500 animate-pulse' : 'text-slate-400'}"></i>
+                    </div>
+                    <div class="text-base font-black ${esUrgente ? 'text-red-700' : 'text-slate-800'} truncate" title="${tUrg}">${tUrg}</div>
+                </div>
+                
+                <div class="p-3 rounded-xl border bg-purple-50 border-purple-200">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-[9px] font-black text-purple-600 uppercase tracking-wider">Hospitalizado</span>
+                        <i data-lucide="bed-double" class="w-3.5 h-3.5 text-purple-500"></i>
+                    </div>
+                    <div class="text-base font-black text-purple-800 truncate" title="${tHosp}">${tHosp}</div>
+                </div>
+
+                <div class="p-3 rounded-xl border bg-blue-50 border-blue-200">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-[9px] font-black text-blue-600 uppercase tracking-wider">Ambulatorio</span>
+                        <i data-lucide="clock" class="w-3.5 h-3.5 text-blue-500"></i>
+                    </div>
+                    <div class="text-base font-black text-blue-800 truncate" title="${tAmb}">${tAmb}</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-4 mb-6">
+                <div class="col-span-2 p-5 bg-white/40 rounded-2xl border border-white shadow-sm">
+                    <h4 class="flex items-center gap-2 text-[10px] font-black text-medical-dark uppercase tracking-widest mb-3">
+                        <i data-lucide="clipboard-list" class="w-4 h-4 text-medical-primary"></i> Utilidad Clínica
+                    </h4>
+                    <p class="text-xs text-slate-600 leading-relaxed font-medium">
+                        ${getSafeField(ex, 'Utilidad clinica') || 'Información de apoyo diagnóstico no documentada.'}
+                    </p>
+                </div>
+
+                <div class="col-span-1 p-5 bg-white/40 rounded-2xl border border-white shadow-sm">
+                    <h4 class="flex items-center gap-2 text-[10px] font-black text-medical-dark uppercase tracking-widest mb-3">
+                        <i data-lucide="binary" class="w-4 h-4 text-emerald-600"></i> Valores Ref.
+                    </h4>
+                    <p class="text-xs font-bold text-medical-dark bg-emerald-50/50 p-2 rounded-lg border border-emerald-100/50">
+                        ${getSafeField(ex, 'Valores referencia') || 'Ver informe.'}
+                    </p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-4">
+                <div class="p-4 bg-white/60 rounded-xl border-l-4 border-l-blue-400 shadow-sm">
+                    <span class="text-[9px] font-black text-blue-500 uppercase mb-2 flex items-center gap-1"><i data-lucide="user" class="w-3 h-3"></i> Preparación</span>
+                    <p class="text-[10px] font-medium text-slate-600">${cond.paciente}</p>
+                </div>
+                <div class="p-4 bg-white/60 rounded-xl border-l-4 border-l-emerald-400 shadow-sm">
+                    <span class="text-[9px] font-black text-emerald-500 uppercase mb-2 flex items-center gap-1"><i data-lucide="thermometer-snowflake" class="w-3 h-3"></i> Conservación</span>
+                    <p class="text-[10px] font-medium text-slate-600">${cond.conservacion}</p>
+                </div>
+                <div class="p-4 bg-white/60 rounded-xl border-l-4 border-l-amber-400 shadow-sm">
+                    <span class="text-[9px] font-black text-amber-500 uppercase mb-2 flex items-center gap-1"><i data-lucide="package" class="w-3 h-3"></i> Transporte</span>
+                    <p class="text-[10px] font-medium text-slate-600">${cond.transporte}</p>
+                </div>
+            </div>
+        `;
+        lucide.createIcons();
+    }
+
+    // Función para obtener icono y estilo según la complejidad del hospital
+    function getHospitalConfig(name) {
+      const n = (name || "").toUpperCase().trim();
+      if (n === 'HHHA') {
+        return { icon: 'building-2', size: 'w-7 h-7', label: 'Alta', color: 'text-medical-dark' };
+      }
+      const mediana = ['HVILLA', 'HINI', 'HLAUTA', 'CAPLC'];
+      if (mediana.some(h => n.includes(h))) {
+        return { icon: 'hospital', size: 'w-5 h-5', label: 'Mediana', color: 'text-medical-primary' };
+      }
+      return { icon: 'home', size: 'w-4 h-4', label: 'Baja', color: 'text-slate-500' };
+    }
+
+  
+
+    // Nueva función para renderizar la lista del Gestor
+    function renderEditor(items) {
+      const b = document.getElementById('editor-table-body'); 
+      b.innerHTML = '';
+      items.slice(0, 100).forEach(ex => {
+        const id = getSafeField(ex, 'Número');
+        const area = getSafeField(ex, 'Area de trabajo');
+        if(!id) return;
+        const r = document.createElement('tr');
+        r.className = `hover:bg-medical-light/30 border-b border-slate-200 transition-all`;
+        r.innerHTML = `
+            <td class="p-4 font-bold text-slate-400 text-[10px] tabular-nums">${id}</td>
+            <td class="p-4 font-bold text-medical-dark text-xs">${getSafeField(ex, 'Nombre exámen SIEL')}</td>
+            <td class="p-4 text-[10px] font-medium text-slate-500 uppercase">${area}</td>
+            <td class="p-4 text-center">
+                <button onclick="openEditModal('${id}')" class="p-2 bg-white border border-slate-200 rounded-lg text-medical-primary hover:bg-medical-primary hover:text-white transition-all shadow-sm">
+                    <i data-lucide="edit-3" class="w-4 h-4"></i>
+                </button>
+            </td>
+        `;
+        b.appendChild(r);
+      });
+      lucide.createIcons();
+    }
+
+    // Funciones del Modal
+    function openEditModal(id) {
+        const ex = db.examenes.find(x => getSafeField(x, 'Número') == id);
+        if(!ex) return;
+        
+        document.getElementById('edit-id').value = id;
+        document.getElementById('modal-id-display').innerText = "ID SIEL: " + id;
+        document.getElementById('edit-nombre').value = getSafeField(ex, 'Nombre exámen SIEL');
+        document.getElementById('edit-area').value = getSafeField(ex, 'Area de trabajo');
+        document.getElementById('edit-fonasa').value = getSafeField(ex, 'Código FONASA');
+        document.getElementById('edit-loinc').value = getSafeField(ex, 'Código LOINC');
+        document.getElementById('edit-utilidad').value = getSafeField(ex, 'Utilidad clinica');
+        document.getElementById('edit-valores').value = getSafeField(ex, 'Valores referencia');
+        
+        document.getElementById('edit-modal').classList.remove('hidden');
+        lucide.createIcons();
+    }
+
+    function closeEditModal() {
+        document.getElementById('edit-modal').classList.add('hidden');
+    }
+
+    function confirmModalChanges() {
+        const id = document.getElementById('edit-id').value;
+        if(!changes[id]) changes[id] = {'Número': id};
+        
+        // Mapeamos los campos del modal al objeto de cambios
+        changes[id]['Nombre exámen SIEL'] = document.getElementById('edit-nombre').value;
+        changes[id]['Area de trabajo'] = document.getElementById('edit-area').value;
+        changes[id]['Código FONASA'] = document.getElementById('edit-fonasa').value;
+        changes[id]['Código LOINC'] = document.getElementById('edit-loinc').value;
+        changes[id]['Utilidad clinica'] = document.getElementById('edit-utilidad').value;
+        changes[id]['Valores referencia'] = document.getElementById('edit-valores').value;
+
+        // Actualizamos visualmente el botón de guardado maestro
+        const btns = document.querySelectorAll('.save-btn');
+        btns.forEach(btn => { 
+            btn.classList.remove('opacity-50', 'cursor-not-allowed'); 
+            btn.classList.add('bg-amber-500', 'pulse-glow'); 
+            btn.innerText = "Sincronizar cambios detectados"; 
+        });
+
+        closeEditModal();
+        alert("Cambios preparados localmente para el examen " + id + ". Recuerde sincronizar a Sheets al finalizar.");
+    }
+
+    function markChange(id, field, value) {
+      if(!changes[id]) changes[id] = {'Número': id};
+      changes[id][field] = value;
+      const btns = document.querySelectorAll('.save-btn');
+      btns.forEach(btn => { btn.classList.remove('opacity-50', 'cursor-not-allowed'); btn.classList.add('bg-amber-500'); btn.innerText = "Guardar cambios"; });
+    }
+
+    function saveChanges() {
+      const datos = Object.values(changes);
+      google.script.run.withSuccessHandler(() => location.reload()).guardarEdicionMasiva(datos);
+    }
+
+
+    // 1. BASE DE DATOS TEMPORAL DE USUARIOS (Para que no esté vacía)
+    if (!db.usuarios) {
+        db.usuarios = [
+            { email: 'admin@ssasur.cl', role: 'ADMIN', sede: 'Dirección SSASUR' },
+            { email: 'medico@ssasur.cl', role: 'LECTOR', sede: 'Hospital Nodo' }
+        ];
+    }
+    
+    // Si la variable global 'user' no existe aún, la creamos para evitar errores
+    if (typeof user === 'undefined') {
+        var user = { email: 'admin@ssasur.cl', role: 'ADMIN' };
+    }
+
+    // 2. FUNCIÓN PARA DIBUJAR LA TABLA
+    function renderUsers() {
+        const b = document.getElementById('user-table-body');
+        if (!b) return; // Seguridad extra
+        b.innerHTML = '';
+        
+        db.usuarios.forEach(u => {
+            const isMe = (user && user.email === u.email); 
+            let roleColor = u.role === 'ADMIN' ? 'text-red-600 bg-red-100' : (u.role === 'EDITOR' ? 'text-blue-600 bg-blue-100' : 'text-emerald-600 bg-emerald-100');
+            
+            b.innerHTML += `
+                <tr class="hover:bg-medical-light/30 border-b border-slate-200 transition-all">
+                    <td class="p-4 font-bold text-medical-dark text-sm">${u.email}</td>
+                    <td class="p-4">
+                        <span class="text-[9px] font-black uppercase px-2.5 py-1 rounded-full ${roleColor}">${u.role}</span>
+                    </td>
+                    <td class="p-4 font-medium text-slate-500 text-xs">${u.sede || 'Sin asignar'}</td>
+                    <td class="p-4 text-center flex justify-center gap-2">
+                        <button onclick="openUserModal('${u.email}')" class="p-2 bg-white border border-slate-200 rounded-lg text-blue-500 hover:bg-blue-500 hover:text-white transition-all shadow-sm" title="Editar">
+                            <i data-lucide="edit" class="w-4 h-4"></i>
+                        </button>
+                        ${!isMe ? `
+                        <button onclick="deleteUser('${u.email}')" class="p-2 bg-white border border-slate-200 rounded-lg text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm" title="Eliminar">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                        ` : ''}
+                    </td>
+                </tr>
+            `;
+        });
+        
+        // Volvemos a renderizar los iconos
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // 3. FUNCIONES DE LA VENTANA EMERGENTE (MODAL)
+    function openUserModal(email = null) {
+        const modal = document.getElementById('user-modal');
+        if (!modal) {
+            alert("Error: No se encontró el código HTML del modal.");
+            return;
+        }
+        
+        modal.classList.remove('hidden');
+        
+        if (email && email !== 'undefined') {
+            const u = db.usuarios.find(x => x.email === email);
+            if(u) {
+                document.getElementById('user-modal-title').innerText = "Editar Usuario";
+                document.getElementById('usr-original-email').value = u.email;
+                document.getElementById('usr-email').value = u.email;
+                document.getElementById('usr-role').value = u.role;
+                document.getElementById('usr-sede').value = u.sede;
+            }
+        } else {
+            document.getElementById('user-modal-title').innerText = "Nuevo Usuario";
+            document.getElementById('usr-original-email').value = '';
+            document.getElementById('usr-email').value = '';
+            document.getElementById('usr-role').value = 'LECTOR';
+            document.getElementById('usr-sede').value = '';
+        }
+    }
+
+    function closeUserModal() {
+        const modal = document.getElementById('user-modal');
+        if(modal) modal.classList.add('hidden');
+    }
+
+    function saveUser() {
+        const origEmail = document.getElementById('usr-original-email').value;
+        const email = document.getElementById('usr-email').value.trim();
+        const role = document.getElementById('usr-role').value;
+        const sede = document.getElementById('usr-sede').value.trim();
+
+        if(!email) return alert("El correo es obligatorio.");
+
+        // Si estamos editando, borramos el original temporalmente
+        if (origEmail) {
+            db.usuarios = db.usuarios.filter(u => u.email !== origEmail);
+        }
+        
+        // Verificamos que no haya duplicados
+        if (db.usuarios.some(u => u.email === email)) {
+            alert("Este correo ya está registrado.");
+            return;
+        }
+
+        // Guardamos el usuario
+        db.usuarios.push({ email, role, sede });
+        closeUserModal();
+        renderUsers(); // Refrescamos la tabla
+    }
+
+    function deleteUser(email) {
+        if(confirm(`¿Estás seguro de eliminar el acceso para ${email}?`)) {
+            db.usuarios = db.usuarios.filter(u => u.email !== email);
+            renderUsers(); // Refrescamos la tabla
+        }
+    }
+
+    // Función para cambiar entre las pantallas del sistema
+    function nav(tab) {
+        // Definimos las 3 pestañas que existen: Catálogo (cat), Gestor (edt) y Usuarios (usr)
+        const tabs = ['cat', 'edt', 'usr'];
+        
+        tabs.forEach(t => {
+            const btn = document.getElementById(`tab-${t}`);
+            const view = document.getElementById(`view-${t}`);
+            
+            // Si el botón y la vista existen en el HTML, aplicamos los cambios
+            if (btn && view) {
+                if (t === tab) {
+                    // Pestaña ACTIVA: Le damos fondo blanco y texto azul
+                    btn.classList.add('bg-white', 'text-medical-primary', 'shadow-sm');
+                    btn.classList.remove('text-slate-500');
+                    view.classList.remove('hidden'); // Mostramos la pantalla
+                } else {
+                    // Pestaña INACTIVA: Le quitamos el fondo y la ponemos gris
+                    btn.classList.remove('bg-white', 'text-medical-primary', 'shadow-sm');
+                    btn.classList.add('text-slate-500');
+                    view.classList.add('hidden'); // Ocultamos la pantalla
+                }
+            }
+        });
+        
+        // Si el usuario acaba de entrar a la pestaña de Usuarios, dibujamos la tabla
+        if (tab === 'usr' && typeof renderUsers === 'function') {
+            renderUsers();
+        }
+    }
+     
+
+  </script>
+</body>
+</html>
