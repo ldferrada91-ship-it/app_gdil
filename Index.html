@@ -33,11 +33,11 @@
       <div class="text-center mb-8">
         <div class="inline-block bg-sky-100 p-3 rounded-full text-clinblue text-3xl mb-4"><i class="fas fa-microscope"></i></div>
         <h2 class="text-2xl font-bold text-clindark">GDIL Tracker</h2>
-        <p class="text-xs text-slate-500 font-bold tracking-wider mt-1">COMITÉ GDIL - SSASUR</p>
+        <p class="text-xs text-slate-500 font-bold tracking-wider mt-1">Comité de gestión de la información de laboratorio - SSASUR</p>
       </div>
       <form id="formLogin" class="space-y-4">
         <div><label class="block text-xs font-bold text-slate-500 mb-1">RUN (Sin guion ni DV)</label><input type="number" id="loginRun" class="input-clin" required></div>
-        <div><label class="block text-xs font-bold text-slate-500 mb-1">CLAVE</label><input type="password" id="loginPass" class="input-clin" required></div>
+        <div><label class="block text-xs font-bold text-slate-500 mb-1">Clave</label><input type="password" id="loginPass" class="input-clin" required></div>
         <button type="submit" id="btnLogin" class="w-full bg-clinblue hover:bg-clindark text-white font-bold py-3 rounded-xl transition mt-6">Ingresar</button>
       </form>
       <div class="text-center mt-4">
@@ -67,12 +67,25 @@
       </div>
     </header>
 
+    <div id="alertsContainer" class="max-w-7xl mx-auto px-6 pt-4 flex flex-col gap-2 z-40"></div>
+
     <main class="flex-grow max-w-7xl mx-auto w-full px-6 py-8">
       
       <section id="sec-form" class="max-w-3xl mx-auto glass-card p-8 animate-fade-in">
         <h2 class="text-xl font-bold text-clindark mb-6"><i class="fas fa-file-medical text-clinblue mr-2"></i> Registro de nuevo caso</h2>
         <form id="formIncidencia" class="space-y-5">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            
+            <div class="md:col-span-2">
+              <label class="block text-xs font-bold text-slate-500 mb-1">TIPO DE CASO</label>
+              <select name="tipo_caso" class="input-clin" required>
+                <option value="">Seleccione el tipo de registro...</option>
+                <option value="Solicitud">📋 Solicitud</option>
+                <option value="Evento adverso">⚠️ Evento adverso</option>
+                <option value="Sugerencia">💡 Sugerencia</option>
+              </select>
+            </div>
+
             <div><label class="block text-xs font-bold text-slate-500 mb-1">FASE LIS</label><select name="fase" id="sel-fase" class="input-clin" required></select></div>
             <div><label class="block text-xs font-bold text-slate-500 mb-1">PRIORIDAD</label>
               <select name="prioridad" class="input-clin" required><option value="Baja">🟢 Baja</option><option value="Media">🟡 Media</option><option value="Alta">🔴 Alta</option></select>
@@ -85,11 +98,19 @@
             <div><label class="block text-xs font-bold text-slate-500 mb-1">FECHA</label><input type="date" name="fecha" id="inp-fecha" class="input-clin" required></div>
             <div><label class="block text-xs font-bold text-slate-500 mb-1">HORA</label><input type="time" name="hora" id="inp-hora" class="input-clin" required></div>
           </div>
-          <div><label class="block text-xs font-bold text-slate-500 mb-1">IMPACTO OPERATIVO</label>
+          
+          <div>
+            <label class="flex items-center text-xs font-bold text-slate-500 mb-1">
+              IMPACTO OPERATIVO
+              <button type="button" onclick="mostrarGuiaImpacto()" class="ml-2 bg-blue-50 text-clinblue hover:bg-blue-100 px-2 py-0.5 rounded-full transition" title="Guía para clasificar el impacto">
+                <i class="fas fa-question-circle text-[10px]"></i> Ayuda
+              </button>
+            </label>
             <select name="impacto" id="sel-imp" class="input-clin" required></select>
           </div>
+
           <div><label class="block text-xs font-bold text-slate-500 mb-1">DESCRIPCIÓN</label>
-            <textarea name="descripcion" rows="4" class="input-clin resize-none" placeholder="Detalle del problema..." required></textarea>
+            <textarea name="descripcion" rows="4" class="input-clin resize-none" placeholder="Detalle del problema o sugerencia..." required></textarea>
           </div>
           <button type="submit" id="btn-submit" class="w-full bg-clinblue hover:bg-clindark text-white font-bold py-3 rounded-xl transition flex justify-center items-center gap-2">
             <i class="fas fa-paper-plane"></i> Registrar evento
@@ -117,7 +138,7 @@
           <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-8 gap-3 items-end">
              <div class="lg:col-span-2 relative">
                 <i class="fas fa-search absolute left-3 top-2.5 text-slate-400"></i>
-                <input type="text" id="f-busq" placeholder="Buscar ID..." class="input-clin pl-9 py-1.5" onkeyup="aplicarFiltrosHistorial()">
+                <input type="text" id="f-busq" placeholder="Buscar ID o tipo..." class="input-clin pl-9 py-1.5" onkeyup="aplicarFiltrosHistorial()">
              </div>
              <div class="relative">
                 <input type="date" id="f-fecha" class="input-clin py-1.5 text-xs" onchange="aplicarFiltrosHistorial()" title="Filtrar por Fecha">
@@ -144,7 +165,16 @@
           <div class="overflow-x-auto">
             <table class="w-full text-left text-xs whitespace-nowrap">
               <thead class="bg-white text-slate-500 uppercase tracking-wider font-bold border-b border-slate-200">
-                <tr><th class="p-3">ID Caso</th><th class="p-3">Fecha</th><th class="p-3">Lab / Fase</th><th class="p-3">Prioridad</th><th class="p-3">SLA</th><th class="p-3">Estado</th><th class="p-3 text-right">Acciones</th></tr>
+                <tr>
+                  <th class="p-3">ID Caso</th>
+                  <th class="p-3">Fecha</th>
+                  <th class="p-3">Tipo / Prioridad</th>
+                  <th class="p-3">Lab / Fase</th>
+                  <th class="p-3">SLA</th>
+                  <th class="p-3">Revisor</th>
+                  <th class="p-3">Estado</th>
+                  <th class="p-3 text-right">Acciones</th>
+                </tr>
               </thead>
               <tbody id="tb-hist" class="divide-y divide-slate-100 font-medium"></tbody>
             </table>
@@ -194,7 +224,7 @@
     </main>
 
     <footer class="text-center text-[10px] text-slate-400 py-6 mt-auto">
-      Aplicación desarrollada por TM Luis Ferrada Toro, GDIL SSASUR, v 0.6a, 2026
+      Aplicación desarrollada por TM Luis Ferrada Toro, GDIL SSASUR, v 0.6b, 2026
     </footer>
   </div>
 
@@ -253,6 +283,39 @@
       tab('form');
     }
 
+    function mostrarGuiaImpacto() {
+      Swal.fire({
+        title: '<div class="text-clindark text-lg border-b pb-2 flex items-center gap-2"><i class="fas fa-shield-alt text-clinblue"></i> Matriz de severidad</div>',
+        html: `
+          <div class="text-left text-sm space-y-3 mt-4 font-sans">
+            <div class="p-3 bg-slate-50 border-l-4 border-slate-400 rounded shadow-sm hover:shadow-md transition">
+              <p class="font-bold text-slate-700"><i class="fas fa-info-circle mr-1 text-slate-400"></i> I. Mínimo</p>
+              <p class="text-xs text-slate-500 mt-1 ml-5">Error estético o sin afectación al flujo de trabajo del laboratorio.</p>
+            </div>
+            <div class="p-3 bg-blue-50 border-l-4 border-clinblue rounded shadow-sm hover:shadow-md transition">
+              <p class="font-bold text-clindark"><i class="fas fa-wrench mr-1 text-clinblue"></i> II. Menor</p>
+              <p class="text-xs text-slate-600 mt-1 ml-5">Afectación menor al flujo de trabajo. Requiere corrección.</p>
+            </div>
+            <div class="p-3 bg-amber-50 border-l-4 border-clinamber rounded shadow-sm hover:shadow-md transition">
+              <p class="font-bold text-amber-900"><i class="fas fa-exclamation-triangle mr-1 text-clinamber"></i> III. Moderado</p>
+              <p class="text-xs text-amber-700 mt-1 ml-5">Detención parcial de un área técnica. Afecta el normal funcionamiento del laboratorio.</p>
+            </div>
+            <div class="p-3 bg-orange-50 border-l-4 border-orange-500 rounded shadow-sm hover:shadow-md transition">
+              <p class="font-bold text-orange-900"><i class="fas fa-minus-circle mr-1 text-orange-500"></i> IV. Mayor</p>
+              <p class="text-xs text-orange-700 mt-1 ml-5">Detención total de la interfaz o de un proceso del laboratorio. Afecta a toda la red SSASUR. Riesgo clínico latente.</p>
+            </div>
+            <div class="p-3 bg-red-50 border-l-4 border-clinred rounded shadow-sm hover:shadow-md transition">
+              <p class="font-bold text-red-900"><i class="fas fa-radiation-alt mr-1 text-clinred"></i> V. Crítico</p>
+              <p class="text-xs text-red-700 mt-1 ml-5">Pérdida de integridad de datos, detención total de un proceso o generación de información incorrecta.</p>
+            </div>
+          </div>
+        `,
+        width: '550px',
+        confirmButtonColor: '#0c4a6e',
+        confirmButtonText: 'Entendido'
+      });
+    }
+
     function modalCambioClave() {
       Swal.fire({
         title: 'Cambiar Contraseña',
@@ -301,7 +364,7 @@
     };
 
     function loadHist() {
-      document.getElementById('tb-hist').innerHTML = '<tr><td colspan="7" class="text-center py-6 text-slate-500"><i class="fas fa-circle-notch fa-spin text-clinblue text-lg"></i><br>Cargando datos...</td></tr>';
+      document.getElementById('tb-hist').innerHTML = '<tr><td colspan="8" class="text-center py-6 text-slate-500"><i class="fas fa-circle-notch fa-spin text-clinblue text-lg"></i><br>Cargando datos...</td></tr>';
       google.script.run.withSuccessHandler(res => {
         document.getElementById('m-hoy').innerText = res.metrics.hoy; document.getElementById('m-atr').innerText = res.metrics.atrasados;
         document.getElementById('m-fin').innerText = res.metrics.finalizados; document.getElementById('m-lab').innerText = res.metrics.labMax;
@@ -313,10 +376,10 @@
     function aplicarFiltrosHistorial() {
       const q = document.getElementById('f-busq').value.toLowerCase(); const est = document.getElementById('f-estado').value;
       const pri = document.getElementById('f-pri').value; const lab = document.getElementById('f-lab').value; const fase = document.getElementById('f-fase').value;
-      const fec = document.getElementById('f-fecha').value; // YYYY-MM-DD
+      const fec = document.getElementById('f-fecha').value; 
 
       historicoDataFiltrado = historicoDataOriginal.filter(r => {
-        const matchQ = !q || r.ID.toLowerCase().includes(q) || r.Laboratorio.toLowerCase().includes(q) || r.Descripcion.toLowerCase().includes(q);
+        const matchQ = !q || r.ID.toLowerCase().includes(q) || r.Laboratorio.toLowerCase().includes(q) || r.Descripcion.toLowerCase().includes(q) || r.Tipo_Caso.toLowerCase().includes(q);
         const matchEst = !est || r.Estado === est; const matchPri = !pri || r.Prioridad === pri;
         const matchLab = !lab || r.Laboratorio === lab; const matchFase = !fase || r.Fase === fase;
         
@@ -326,7 +389,6 @@
            let rDateStr = `${p[2]}-${p[1]}-${p[0]}`; 
            matchFec = (rDateStr === fec);
         }
-
         return matchQ && matchEst && matchPri && matchLab && matchFase && matchFec;
       });
       currentPage = 1; renderTablaHistorial();
@@ -334,7 +396,7 @@
 
     function renderTablaHistorial() {
       const tb = document.getElementById('tb-hist');
-      if(historicoDataFiltrado.length === 0) { tb.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-slate-500">No hay registros</td></tr>'; document.getElementById('txt-paginacion').innerText = `Pág. 0`; return; }
+      if(historicoDataFiltrado.length === 0) { tb.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-slate-500">No hay registros</td></tr>'; document.getElementById('txt-paginacion').innerText = `Pág. 0`; return; }
       
       const limit = parseInt(document.getElementById('sel-limite').value);
       const start = (currentPage - 1) * limit; const pagData = historicoDataFiltrado.slice(start, start + limit);
@@ -351,11 +413,14 @@
           acciones += `<button onclick='modalFinalizar("${r.ID}")' class="text-clingreen hover:text-green-800 p-1 ml-1" title="Finalizar Caso"><i class="fas fa-check-circle fa-lg"></i></button>`;
         }
 
+        // Combinamos Tipo y Prioridad para mantener el diseño limpio
         tb.innerHTML += `<tr>
           <td class="p-3 font-mono text-clinblue">${r.ID}</td>
           <td class="p-3">${r.Fecha}</td>
+          <td class="p-3"><div>${r.Tipo_Caso}</div><div class="${cp} text-[10px]">${r.Prioridad}</div></td>
           <td class="p-3"><div>${r.Laboratorio}</div><div class="text-[10px] text-slate-400">${r.Fase}</div></td>
-          <td class="p-3 ${cp}">${r.Prioridad}</td><td class="p-3 ${cd}">${r.Dias_Estado} d</td>
+          <td class="p-3 ${cd}">${r.Dias_Estado} d</td>
+          <td class="p-3 text-xs text-slate-500 font-bold">${r.Revisor || '-'}</td>
           <td class="p-3"><select onchange="updateEst('${r.ID}', this.value)" class="border rounded p-1 text-xs outline-none focus:border-clinblue" ${sessionUser.rol!=='Admin'?'disabled':''}>
             <option ${r.Estado==='Recepcionado'?'selected':''}>Recepcionado</option><option ${r.Estado==='En revisión'?'selected':''}>En revisión</option>
             <option ${r.Estado==='Postergado'?'selected':''}>Postergado</option><option ${r.Estado==='Finalizado'?'selected':''}>Finalizado</option>
@@ -409,7 +474,16 @@
       }
       Swal.fire({
         title: `<div class="text-clinblue text-lg border-b pb-2"><i class="fas fa-info-circle"></i> Detalle ${r.ID}</div>`,
-        html: `<div class="text-left text-sm space-y-2 text-slate-600 mt-4"><p><strong>Fase/Lab:</strong> ${r.Fase} / ${r.Laboratorio}</p><p><strong>Notificador:</strong> ${r.Notificador}</p><p><strong>Impacto:</strong> ${r.Impacto}</p><p class="font-bold border-t pt-2">Descripción:</p><div class="bg-slate-50 p-3 rounded border text-xs whitespace-pre-wrap">${r.Descripcion}</div>${extraInfo}</div>`,
+        html: `<div class="text-left text-sm space-y-2 text-slate-600 mt-4">
+                 <p><strong>Tipo:</strong> ${r.Tipo_Caso}</p>
+                 <p><strong>Fase/Lab:</strong> ${r.Fase} / ${r.Laboratorio}</p>
+                 <p><strong>Notificador:</strong> ${r.Notificador}</p>
+                 <p><strong>Revisor:</strong> ${r.Revisor || 'Pendiente de revisión'}</p>
+                 <p><strong>Impacto:</strong> ${r.Impacto}</p>
+                 <p class="font-bold border-t pt-2">Descripción:</p>
+                 <div class="bg-slate-50 p-3 rounded border text-xs whitespace-pre-wrap">${r.Descripcion}</div>
+                 ${extraInfo}
+               </div>`,
         confirmButtonColor: '#0c4a6e', width: '500px'
       });
     }
@@ -421,72 +495,35 @@
       }).generarPDFIndividual(id, JSON.stringify(sessionUser));
     }
     
-function exportarExcelConFiltros() {
+    function exportarExcelConFiltros() {
       if(historicoDataOriginal.length===0) return;
-      const dIni = document.getElementById('ex-ini').value; 
-      const dFin = document.getElementById('ex-fin').value;
-      const lab = document.getElementById('ex-lab').value; 
-      const fase = document.getElementById('ex-fase').value;
-      
+      const dIni = document.getElementById('ex-ini').value; const dFin = document.getElementById('ex-fin').value;
+      const lab = document.getElementById('ex-lab').value; const fase = document.getElementById('ex-fase').value;
       let aExportar = historicoDataOriginal.filter(r => {
-         let matchLab = !lab || r.Laboratorio === lab; 
-         let matchFase = !fase || r.Fase === fase;
+         let matchLab = !lab || r.Laboratorio === lab; let matchFase = !fase || r.Fase === fase;
          let matchFec = true;
-         
          if(dIni || dFin) {
-            // Corrección de Zona Horaria (Forzamos a que lea el día exacto en hora local)
             let p = r.Fecha.split('/'); 
             if(p.length === 3) {
-               let fDoc = new Date(p[2], p[1]-1, p[0]); // (Año, Mes, Día)
-               
-               if(dIni) { 
-                  let dI = dIni.split('-'); 
-                  let i = new Date(dI[0], dI[1]-1, dI[2], 0,0,0); 
-                  matchFec = matchFec && (fDoc >= i); 
-               }
-               if(dFin) { 
-                  let dF = dFin.split('-'); 
-                  let f = new Date(dF[0], dF[1]-1, dF[2], 23,59,59); 
-                  matchFec = matchFec && (fDoc <= f); 
-               }
-            } else {
-               matchFec = false; // Excluye si la fecha está corrupta en la base
-            }
+               let fDoc = new Date(p[2], p[1]-1, p[0]); 
+               if(dIni) { let dI = dIni.split('-'); let i = new Date(dI[0], dI[1]-1, dI[2], 0,0,0); matchFec = matchFec && (fDoc >= i); }
+               if(dFin) { let dF = dFin.split('-'); let f = new Date(dF[0], dF[1]-1, dF[2], 23,59,59); matchFec = matchFec && (fDoc <= f); }
+            } else { matchFec = false; }
          }
          return matchLab && matchFase && matchFec;
       });
-
-      if(aExportar.length === 0) return Swal.fire('Aviso', 'No hay datos en este rango de fechas.', 'info');
-
-      // EXTRACCIÓN ESTRUCTURADA PARA EXCEL (UTF-8 con separador Punto y Coma)
-      let csvContent = "\uFEFF"; // Código BOM para que Excel respete los Tildes y la 'Ñ'
-      let headers = Object.keys(aExportar[0]).join(';');
-      csvContent += headers + '\n';
-      
-      csvContent += aExportar.map(r => {
-         return Object.values(r).map(v => {
-            // Limpia comillas dobles y saltos de línea para que no se rompan las celdas
-            let celda = (v||'').toString().replace(/"/g, '""').replace(/\n/g, " ");
-            return `"${celda}"`;
-         }).join(';');
-      }).join('\n');
-      
-      // Descarga usando Blob nativo
-      let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      let url = URL.createObjectURL(blob);
-      let a = document.createElement('a'); 
-      a.href = url; 
-      a.download = 'Base_Datos_GDIL.csv'; 
-      a.click();
-      URL.revokeObjectURL(url);
+      if(aExportar.length === 0) return Swal.fire('Aviso', 'No hay datos en este rango.', 'info');
+      let csvContent = "\uFEFF"; 
+      let headers = Object.keys(aExportar[0]).join(';'); csvContent += headers + '\n';
+      csvContent += aExportar.map(r => Object.values(r).map(v => `"${(v||'').toString().replace(/"/g, '""').replace(/\n/g, " ")}"`).join(';')).join('\n');
+      let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }); let url = URL.createObjectURL(blob);
+      let a = document.createElement('a'); a.href = url; a.download = 'Base_Datos_GDIL.csv'; a.click(); URL.revokeObjectURL(url);
     }
 
-    // MANTENEDOR CONFIG - Edit y Mover agregados
     let currentConfigData = null; let activeConfigType = 'Laboratorio';
     function loadConfigData() { google.script.run.withSuccessHandler(res => { currentConfigData = res; renderConfigUI(); }).obtenerDatosConfiguracion(); }
     function selConfigType(type) {
-      activeConfigType = type;
-      document.querySelectorAll('.cat-btn').forEach(b => { b.classList.remove('bg-slate-100', 'text-clindark', 'font-bold'); b.classList.add('hover:bg-slate-50', 'text-slate-600'); });
+      activeConfigType = type; document.querySelectorAll('.cat-btn').forEach(b => { b.classList.remove('bg-slate-100', 'text-clindark', 'font-bold'); b.classList.add('hover:bg-slate-50', 'text-slate-600'); });
       const activeBtn = document.getElementById('btn-cat-' + type); activeBtn.classList.add('bg-slate-100', 'text-clindark', 'font-bold'); activeBtn.classList.remove('hover:bg-slate-50', 'text-slate-600');
       renderConfigUI();
     }
@@ -528,17 +565,11 @@ function exportarExcelConFiltros() {
       }).gestionarConfig('ELIMINAR', activeConfigType, { id: id }, sessionUser);
     }
 
-    function moveConfigItem(val, dir) {
-       google.script.run.withSuccessHandler(res => { if(res.success) loadConfigData(); }).gestionarConfig('MOVER', activeConfigType, { id: val, dir: dir }, sessionUser);
-    }
+    function moveConfigItem(val, dir) { google.script.run.withSuccessHandler(res => { if(res.success) loadConfigData(); }).gestionarConfig('MOVER', activeConfigType, { id: val, dir: dir }, sessionUser); }
 
     function editConfigVal(oldVal) {
-       Swal.fire({
-          title: 'Editar Nombre', input: 'text', inputValue: oldVal, showCancelButton: true, confirmButtonText: 'Guardar'
-       }).then((res) => {
-          if(res.isConfirmed && res.value) {
-             google.script.run.withSuccessHandler(r => { if(r.success) loadConfigData(); }).gestionarConfig('EDITAR', activeConfigType, { id: oldVal, nuevo: res.value }, sessionUser);
-          }
+       Swal.fire({ title: 'Editar Nombre', input: 'text', inputValue: oldVal, showCancelButton: true, confirmButtonText: 'Guardar' }).then((res) => {
+          if(res.isConfirmed && res.value) { google.script.run.withSuccessHandler(r => { if(r.success) loadConfigData(); }).gestionarConfig('EDITAR', activeConfigType, { id: oldVal, nuevo: res.value }, sessionUser); }
        });
     }
 
@@ -549,13 +580,9 @@ function exportarExcelConFiltros() {
                  <select id="eu-rol" class="swal2-input text-sm"><option value="User" ${rol==='User'?'selected':''}>Usuario</option><option value="Admin" ${rol==='Admin'?'selected':''}>Admin</option></select>
                  <select id="eu-lab" class="swal2-input text-sm"><option value="">Lab Asignado...</option>${configLists.laboratorios.map(l=>`<option ${l===lab?'selected':''}>${l}</option>`).join('')}</select>`,
           showCancelButton: true, confirmButtonText: 'Guardar',
-          preConfirm: () => {
-             return { id: run, nombre: document.getElementById('eu-nom').value, rol: document.getElementById('eu-rol').value, laboratorio: document.getElementById('eu-lab').value };
-          }
+          preConfirm: () => { return { id: run, nombre: document.getElementById('eu-nom').value, rol: document.getElementById('eu-rol').value, laboratorio: document.getElementById('eu-lab').value }; }
        }).then((res) => {
-          if(res.isConfirmed) {
-             google.script.run.withSuccessHandler(r => { if(r.success) loadConfigData(); }).gestionarConfig('EDITAR', 'Usuario', res.value, sessionUser);
-          }
+          if(res.isConfirmed) { google.script.run.withSuccessHandler(r => { if(r.success) loadConfigData(); }).gestionarConfig('EDITAR', 'Usuario', res.value, sessionUser); }
        });
     }
   </script>
