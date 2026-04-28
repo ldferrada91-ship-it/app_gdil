@@ -1,5 +1,5 @@
 /**
- * GDIL - Sistema de Gestión de Incidencias LIS (PRO) - v0.6a
+ * GDIL - Sistema de Gestión de Incidencias LIS (PRO) - v1.0
  * Desarrollado por TM Luis Ferrada Toro
  */
 
@@ -9,7 +9,7 @@ const CORREO_GDIL = 'ldferrada91@gmail.com';
 function doGet() {
   return HtmlService.createTemplateFromFile('Index')
     .evaluate()
-    .setTitle('GDIL LIS Tracker v0.6a')
+    .setTitle('GDIL SSASUR Tracker v1.0')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
@@ -91,16 +91,15 @@ function generarSiguienteID() {
   return `GDIL-${hoyStr}-${String(contador).padStart(4, '0')}`;
 }
 
-// --- GENERADOR DE PDF MEJORADO ---
+// --- GENERADOR DE PDF ---
 function crearBlobPDF(data, id) {
   let colorPri = data.prioridad === 'Alta' ? '#ef4444' : (data.prioridad === 'Media' ? '#f59e0b' : '#22c55e');
   let est = data.estado || 'Recepcionado';
 
-  // Banner de Estado
-  let estColor = '#0284c7'; // Azul por defecto (Recepcionado)
-  if (est === 'En revisión') estColor = '#8b5cf6'; // Morado
-  if (est === 'Postergado') estColor = '#f59e0b'; // Ámbar
-  if (est === 'Finalizado') estColor = '#22c55e'; // Verde
+  let estColor = '#0284c7'; 
+  if (est === 'En revisión') estColor = '#8b5cf6'; 
+  if (est === 'Postergado') estColor = '#f59e0b'; 
+  if (est === 'Finalizado') estColor = '#22c55e'; 
 
   let html = `
     <!DOCTYPE html><html><head><style>
@@ -126,6 +125,7 @@ function crearBlobPDF(data, id) {
       <div class="section-title">Datos Generales del Ticket</div>
       <table class="info-table">
         <tr><th>N° ID Caso</th><td style="color: #0284c7; font-size: 16px;">${id}</td></tr>
+        <tr><th>Tipo de Caso</th><td>${data.tipo_caso || 'N/A'}</td></tr>
         <tr><th>Fecha y Hora del Evento</th><td>${data.fecha} a las ${data.hora} hrs</td></tr>
         <tr><th>Laboratorio Origen</th><td>${data.laboratorio}</td></tr>
         <tr><th>Fase / Sistema LIS</th><td>${data.fase}</td></tr>
@@ -168,10 +168,11 @@ function registrarCaso(data, currentUser) {
   const timestamp = new Date();
   const id = generarSiguienteID(); 
   
+  // Se inserta data.tipo_caso en la columna P (índice 15)
   sheet.appendRow([
     id, data.fecha, data.hora, data.laboratorio, data.fase, 
     data.usuario_nombre, data.usuario_email, data.impacto, data.descripcion, 
-    data.prioridad, "Recepcionado", timestamp, timestamp, "", ""
+    data.prioridad, "Recepcionado", timestamp, timestamp, "", "", data.tipo_caso, ""
   ]);
   
   let casoData = { ...data, estado: 'Recepcionado', Email_Notificador: data.usuario_email };
@@ -186,13 +187,23 @@ function actualizarEstado(id, nuevoEstado, currentUser) {
     if (data[i][0] === id) {
       sheet.getRange(i + 1, 11).setValue(nuevoEstado);
       sheet.getRange(i + 1, 13).setValue(new Date());
+      
+      // LÓGICA DE REVISOR INICIAL (Columna Q, índice 16)
+      let revisorActual = String(data[i][16] || '');
+      let nuevoRevisor = revisorActual;
+      if (revisorActual === '' && currentUser.rol === 'Admin') {
+         nuevoRevisor = currentUser.nombre;
+         sheet.getRange(i + 1, 17).setValue(nuevoRevisor);
+      }
+
       registrarLog(currentUser.nombre, 'CAMBIO_ESTADO', `Ticket ${id} -> ${nuevoEstado}`);
       
       let casoData = {
         fecha: Utilities.formatDate(new Date(data[i][1]), "GMT-3", "dd/MM/yyyy"), hora: data[i][2],
         laboratorio: data[i][3], fase: data[i][4], usuario_nombre: data[i][5], 
         Email_Notificador: data[i][6], impacto: data[i][7], descripcion: data[i][8], 
-        prioridad: data[i][9], estado: nuevoEstado, comentario: String(data[i][13] || ''), admin: String(data[i][14] || '')
+        prioridad: data[i][9], estado: nuevoEstado, comentario: String(data[i][13] || ''), admin: String(data[i][14] || ''),
+        tipo_caso: String(data[i][15] || ''), revisor: nuevoRevisor
       };
       enviarCorreoNotificacion(casoData, id, `Actualización de Estado: ${nuevoEstado}`);
       return true;
@@ -210,13 +221,23 @@ function finalizarCaso(id, comentario, currentUser) {
       sheet.getRange(i + 1, 13).setValue(new Date());
       sheet.getRange(i + 1, 14).setValue(comentario); 
       sheet.getRange(i + 1, 15).setValue(currentUser.nombre); 
+      
+      // LÓGICA DE REVISOR (Por si un caso es finalizado sin pasar por revisión intermedia)
+      let revisorActual = String(data[i][16] || '');
+      let nuevoRevisor = revisorActual;
+      if (revisorActual === '' && currentUser.rol === 'Admin') {
+         nuevoRevisor = currentUser.nombre;
+         sheet.getRange(i + 1, 17).setValue(nuevoRevisor);
+      }
+
       registrarLog(currentUser.nombre, 'FINALIZO_CASO', `Ticket ${id}`);
       
       let casoData = {
         fecha: Utilities.formatDate(new Date(data[i][1]), "GMT-3", "dd/MM/yyyy"), hora: data[i][2],
         laboratorio: data[i][3], fase: data[i][4], usuario_nombre: data[i][5], 
         Email_Notificador: data[i][6], impacto: data[i][7], descripcion: data[i][8], 
-        prioridad: data[i][9], estado: 'Finalizado', comentario: comentario, admin: currentUser.nombre
+        prioridad: data[i][9], estado: 'Finalizado', comentario: comentario, admin: currentUser.nombre,
+        tipo_caso: String(data[i][15] || ''), revisor: nuevoRevisor
       };
       enviarCorreoNotificacion(casoData, id, "Caso Finalizado y Resuelto");
       return true;
@@ -270,10 +291,12 @@ function getCasos(user) {
       counts.labs[rLab] = (counts.labs[rLab] || 0) + 1;
 
       casos.push({
-        ID: String(r[0] || ''), Fecha: formatearSeguro(r[1], false), Hora: formatearSeguro(r[2], true), 
+        ID: String(r[0] || ''), Tipo_Caso: String(r[15] || 'No definido'),
+        Fecha: formatearSeguro(r[1], false), Hora: formatearSeguro(r[2], true), 
         Laboratorio: rLab, Fase: String(r[4] || '').trim(), Notificador: String(r[5] || '').trim(), 
         Impacto: String(r[7] || ''), Descripcion: String(r[8] || ''), Prioridad: String(r[9] || ''), 
-        Estado: estado, Dias_Estado: dias, Comentario: String(r[13] || ''), AdminRes: String(r[14] || '')
+        Estado: estado, Dias_Estado: dias, Comentario: String(r[13] || ''), AdminRes: String(r[14] || ''),
+        Revisor: String(r[16] || '')
       });
     });
     
@@ -291,8 +314,8 @@ function generarPDFIndividual(id, userStr) {
   if (!caso) return null;
   
   let dataParaPDF = {
-    prioridad: caso.Prioridad, fecha: caso.Fecha, hora: caso.Hora, laboratorio: caso.Laboratorio, 
-    fase: caso.Fase, usuario_nombre: caso.Notificador, impacto: caso.Impacto, 
+    prioridad: caso.Prioridad, tipo_caso: caso.Tipo_Caso, fecha: caso.Fecha, hora: caso.Hora, 
+    laboratorio: caso.Laboratorio, fase: caso.Fase, usuario_nombre: caso.Notificador, impacto: caso.Impacto, 
     descripcion: caso.Descripcion, estado: caso.Estado, comentario: caso.Comentario, admin: caso.AdminRes
   };
   
